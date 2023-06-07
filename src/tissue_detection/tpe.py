@@ -14,8 +14,9 @@ class TPE1(Template):
         self.mask_lb = 0
         self.mask_ub = 60
 
-    def create_mask(self, img):
-        mask = cv2.inRange(img, self.mask_lb, self.mask_ub)
+    @property
+    def mask(self):
+        mask = cv2.inRange(self.padded_template, self.mask_lb, self.mask_ub)
 
         # remove pillar features so can be used with 3 pillar design
         mask[170:220, 140:220] = 0
@@ -58,9 +59,7 @@ class TPE2(TPE1):
         self.mask_lb = 100
         self.mask_ub = 255
 
-    def get_cropped_mask(
-        self, img: np.ndarray, res: np.ndarray, mask: np.ndarray
-    ) -> np.ndarray:
+    def get_cropped_mask(self, img: np.ndarray, res: np.ndarray) -> np.ndarray:
         h, w = img.shape
         x, y = cv2.minMaxLoc(res)[-2]
-        return mask[y : y + h, x : x + w]
+        return self.mask[y : y + h, x : x + w]
