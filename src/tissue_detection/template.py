@@ -1,11 +1,32 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import NamedTuple
+from typing import NamedTuple, Tuple
 from pathlib import Path
 from enum import IntEnum
 
 import cv2
 import numpy as np
+
+
+def to_uint8(img):
+    if img.dtype == np.uint8:
+        return img
+    elif img.dtype == np.uint16:
+        return cv2.convertScaleAbs(img, alpha=(255.0 / 65535.0))
+    else:
+        msg = f"Image has datatype {img.dtype}. Please convert to uint8"
+        raise ValueError(msg)
+
+
+def scale_image(
+    img: np.ndarray, scale: float, interpolation=cv2.INTER_CUBIC
+) -> np.ndarray:
+    if np.isclose(scale, 1.0):
+        return img
+    w, h = img.shape
+    width = int(w * scale)
+    height = int(h * scale)
+    return cv2.resize(img, (height, width), interpolation=interpolation)
 
 
 class MatchMethods(IntEnum):
@@ -27,17 +48,6 @@ class TemplateMatchResult(NamedTuple):
 @dataclass
 class Template:
     template: np.ndarray
-    padding: int = 0
-    scale: float = 1.0
-
-    def __post_init__(self):
-        if self.scale != 1.0:
-            self.template_original = self.template
-            w, h = self.template.shape
-            width = int(w * self.scale)
-            height = int(h * self.scale)
-            self.template = cv2.resize(self.template, (height, width))
-            self.padding = int(self.padding * self.scale)
 
     @property
     def mask(self) -> np.ndarray:
@@ -50,24 +60,28 @@ class Template:
     def create_result(self, img: np.ndarray) -> np.ndarray:
         return img
 
+    def get_template_location(self, res: np.ndarray) -> Tuple[int, int]:
+        return cv2.minMaxLoc(res)[-1]
+
     def get_cropped_mask(
         self, img: np.ndarray, res: np.ndarray, padding: int
     ) -> np.ndarray:
         h, w = self.mask.shape
 
-        x, y = cv2.minMaxLoc(res)[-1]
+        x, y = self.get_template_location(res)
         x -= padding
         y -= padding
         mask = np.zeros_like(img[padding:-padding, padding:-padding])
+        H, W = mask.shape
 
         y0 = max(y, 0)
         sy = abs(min(y, 0))
-        y1 = y0 + h - sy
+        y1 = min(y0 + h - sy, H)
         dy = y1 - y0
 
         x0 = max(x, 0)
         sx = abs(min(x, 0))
-        x1 = x0 + w - sx
+        x1 = min(x0 + w - sx, W)
         dx = x1 - x0
 
         mask[y0:y1, x0:x1] = self.mask[sy : sy + dy, sx : sx + dx]
@@ -78,7 +92,14 @@ class Template:
         img: np.ndarray,
         method: MatchMethods = MatchMethods.CCOEFF,
         padding: int = 50,
+        scale: float = 1.0,
+        invert: bool = False,
     ) -> TemplateMatchResult:
+        img = to_uint8(img)
+        if invert:
+            img = 255 - img
+        if scale != 1.0:
+            img = scale_image(img, 1 / scale)
         # Add some padding to make more room for template to move
         padding = max(padding, 0)
         if padding > 0:
@@ -93,6 +114,10 @@ class Template:
         res = cv2.matchTemplate(img, self.template, method)
         mask_cropped = self.get_cropped_mask(img=img, res=res, padding=padding)
         final_mask = self.create_result(img=mask_cropped)
+        if scale != 1.0:
+            final_mask = scale_image(
+                final_mask, scale=scale, interpolation=cv2.INTER_NEAREST
+            )
 
         return TemplateMatchResult(
             result=final_mask,

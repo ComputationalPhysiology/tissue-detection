@@ -2,10 +2,6 @@
 tissue-detector modules
 #######################
 
-.. automodule:: tissue_detection.detector
-    :members:
-
-
 .. automodule:: tissue_detection.template
     :members:
 

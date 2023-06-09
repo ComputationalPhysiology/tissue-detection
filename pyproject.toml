@@ -13,7 +13,6 @@ keywords = ["cardiac", "ecg", "electrophysiology"]
 dependencies = [
     "numpy",
     "opencv-python",
-    "scikit-image"
 ]
 
 [project.urls]
