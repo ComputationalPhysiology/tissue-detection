@@ -6,6 +6,7 @@ parts:
     chapters:
     - file: docs/quickstart.md
     - file: demos/demo_tpe.ipynb
+    - file: demos/demo_tpe_advanced.ipynb
   - caption: API documentation
     chapters:
     - file: CONTRIBUTING

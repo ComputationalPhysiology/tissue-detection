@@ -8,6 +8,16 @@ import cv2
 import numpy as np
 
 
+def to_uint8(img):
+    if img.dtype == np.uint8:
+        return img
+    elif img.dtype == np.uint16:
+        return cv2.convertScaleAbs(img, alpha=(255.0 / 65535.0))
+    else:
+        msg = f"Image has datatype {img.dtype}. Please convert to uint8"
+        raise ValueError(msg)
+
+
 def scale_image(
     img: np.ndarray, scale: float, interpolation=cv2.INTER_CUBIC
 ) -> np.ndarray:
@@ -82,8 +92,12 @@ class Template:
         img: np.ndarray,
         method: MatchMethods = MatchMethods.CCOEFF,
         padding: int = 50,
-        scale=1.0,
+        scale: float = 1.0,
+        invert: bool = False,
     ) -> TemplateMatchResult:
+        img = to_uint8(img)
+        if invert:
+            img = 255 - img
         if scale != 1.0:
             img = scale_image(img, 1 / scale)
         # Add some padding to make more room for template to move
