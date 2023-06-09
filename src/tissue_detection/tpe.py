@@ -19,20 +19,36 @@ class TPE1(Template):
         self.__post_init__()
 
     @property
+    def distance_between_tissues(self) -> int:
+        return 147
+
+    @property
+    def center_tissue1(self) -> Tuple[int, int]:
+        return (57, 223)
+
+    @property
+    def center_tissue2(self) -> Tuple[int, int]:
+        y, x = self.center_tissue1
+        w = self.distance_between_tissues
+        return (y + w, x)
+
+    @property
+    def center_tissue3(self) -> Tuple[int, int]:
+        y, x = self.center_tissue1
+        w = self.distance_between_tissues
+        return (y + 2 * w, x)
+
+    @property
+    def center_tissue4(self) -> Tuple[int, int]:
+        y, x = self.center_tissue1
+        w = self.distance_between_tissues
+        return (y + 3 * w, x)
+
+    @property
     def mask(self):
         mask = cv2.inRange(self.template, self.mask_lb, self.mask_ub)
 
-        # Distance between tissues
-        wx = 150
-        # Center for tissue1
-        cx1, cy1 = 70, 215
-        # Center for tissue2
-        cx2, cy2 = cx1 + wx, 215
-        # Center for tissue3
-        cx3, cy3 = cx1 + 2 * wx, 215
-        # Center for tissue4
-        cx4, cy4 = cx1 + 3 * wx, 215
-
+        # Position of pilars
         p = self.padding // 2
         px1, py1 = 56 + p, 74 + p
         px2, py2 = 94 + p, 74 + p
@@ -40,21 +56,20 @@ class TPE1(Template):
         px4, py4 = 94 + p, 370 + p
 
         r = 20
+        w = self.distance_between_tissues
         for i in range(4):
-            mask[py1 - r : py1 + r, wx * i + px1 - r : wx * i + px1 + r] = 0
-            mask[py2 - r : py2 + r, wx * i + px2 - r : wx * i + px2 + r] = 0
-            mask[py3 - r : py3 + r, wx * i + px3 - r : wx * i + px3 + r] = 0
-            mask[py4 - r : py4 + r, wx * i + px4 - r : wx * i + px4 + r] = 0
+            mask[py1 - r : py1 + r, w * i + px1 - r : w * i + px1 + r] = 0
+            mask[py2 - r : py2 + r, w * i + px2 - r : w * i + px2 + r] = 0
+            mask[py3 - r : py3 + r, w * i + px3 - r : w * i + px3 + r] = 0
+            mask[py4 - r : py4 + r, w * i + px4 - r : w * i + px4 + r] = 0
 
-        s1 = (cx1, cy1)
-        s2 = (cx2, cy2)
-        s3 = (cx3, cy3)
-        s4 = (cx4, cy4)
+        # Remove an artifact from template
+        mask[67 - 10 : 67 + 10, 475 - 10 : 475 + 10] = 0
 
-        cv2.floodFill(mask, None, s1, 100)
-        cv2.floodFill(mask, None, s2, 125)
-        cv2.floodFill(mask, None, s3, 150)
-        cv2.floodFill(mask, None, s4, 175)
+        cv2.floodFill(mask, None, self.center_tissue1, 100)
+        cv2.floodFill(mask, None, self.center_tissue2, 125)
+        cv2.floodFill(mask, None, self.center_tissue3, 150)
+        cv2.floodFill(mask, None, self.center_tissue4, 175)
 
         return mask
 
@@ -70,16 +85,3 @@ class TPE1(Template):
         final_mask[mask3] = 3
         final_mask[mask4] = 4
         return final_mask
-
-
-class TPE2(TPE1):
-    def __init__(self):
-        self.template = cv2.imread(
-            templates["tpe1_outline"].as_posix(), cv2.IMREAD_GRAYSCALE
-        )
-        self.padding = 50
-        self.mask_lb = 100
-        self.mask_ub = 255
-
-    def get_template_location(self, res: np.ndarray) -> Tuple[int, int]:
-        return cv2.minMaxLoc(res)[-2]
