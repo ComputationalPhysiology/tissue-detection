@@ -21,7 +21,6 @@ class TemplateMatchResult(NamedTuple):
     result: np.ndarray
     template: np.ndarray
     template_mask: np.ndarray
-    template_padded: np.ndarray
     match_result: np.ndarray
 
 
@@ -29,24 +28,20 @@ class TemplateMatchResult(NamedTuple):
 class Template:
     template: np.ndarray
     padding: int = 0
+    scale: float = 1.0
 
-    @property
-    def padded_template(self) -> np.ndarray:
-        if self.padding == 0:
-            return self.template
-        else:
-            return cv2.copyMakeBorder(
-                self.template,
-                self.padding,
-                self.padding,
-                self.padding,
-                self.padding,
-                cv2.BORDER_REPLICATE,
-            )
+    def __post_init__(self):
+        if self.scale != 1.0:
+            self.template_original = self.template
+            w, h = self.template.shape
+            width = int(w * self.scale)
+            height = int(h * self.scale)
+            self.template = cv2.resize(self.template, (height, width))
+            self.padding = int(self.padding * self.scale)
 
     @property
     def mask(self) -> np.ndarray:
-        return self.padded_template
+        return self.template
 
     @classmethod
     def from_file(cls, fname: Path | str) -> "Template":
@@ -55,25 +50,53 @@ class Template:
     def create_result(self, img: np.ndarray) -> np.ndarray:
         return img
 
-    def get_cropped_mask(self, img: np.ndarray, res: np.ndarray) -> np.ndarray:
-        h, w = img.shape
+    def get_cropped_mask(
+        self, img: np.ndarray, res: np.ndarray, padding: int
+    ) -> np.ndarray:
+        h, w = self.mask.shape
 
         x, y = cv2.minMaxLoc(res)[-1]
-        return self.mask[y : y + h, x : x + w]
+        x -= padding
+        y -= padding
+        mask = np.zeros_like(img[padding:-padding, padding:-padding])
+
+        y0 = max(y, 0)
+        sy = abs(min(y, 0))
+        y1 = y0 + h - sy
+        dy = y1 - y0
+
+        x0 = max(x, 0)
+        sx = abs(min(x, 0))
+        x1 = x0 + w - sx
+        dx = x1 - x0
+
+        mask[y0:y1, x0:x1] = self.mask[sy : sy + dy, sx : sx + dx]
+        return mask
 
     def match(
         self,
         img: np.ndarray,
         method: MatchMethods = MatchMethods.CCOEFF,
+        padding: int = 50,
     ) -> TemplateMatchResult:
-        res = cv2.matchTemplate(img, self.padded_template, method)
-        mask_cropped = self.get_cropped_mask(img=img, res=res)
+        # Add some padding to make more room for template to move
+        padding = max(padding, 0)
+        if padding > 0:
+            img = cv2.copyMakeBorder(
+                img,
+                padding,
+                padding,
+                padding,
+                padding,
+                cv2.BORDER_REPLICATE,
+            )
+        res = cv2.matchTemplate(img, self.template, method)
+        mask_cropped = self.get_cropped_mask(img=img, res=res, padding=padding)
         final_mask = self.create_result(img=mask_cropped)
 
         return TemplateMatchResult(
             result=final_mask,
             template=self.template,
             template_mask=self.mask,
-            template_padded=self.padded_template,
             match_result=res,
         )
