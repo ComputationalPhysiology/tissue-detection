@@ -7,16 +7,11 @@ from .templates import files as templates
 
 
 class TPE1(Template):
-    def __init__(self, scale: float = 1.0, padding: int = 0) -> None:
+    def __init__(self) -> None:
         template = cv2.imread(
             templates["tpe1_template"].as_posix(), cv2.IMREAD_GRAYSCALE
         )
         self.template = template[80:520, 50:640]
-        self.padding = padding
-        self.mask_lb = 0
-        self.mask_ub = 60
-        self.scale = scale
-        self.__post_init__()
 
     @property
     def distance_between_tissues(self) -> int:
@@ -45,15 +40,30 @@ class TPE1(Template):
         return (y + 3 * w, x)
 
     @property
+    def pilar1(self) -> Tuple[int, int]:
+        return (56, 74)
+
+    @property
+    def pilar2(self) -> Tuple[int, int]:
+        return (94, 74)
+
+    @property
+    def pilar3(self) -> Tuple[int, int]:
+        return (56, 370)
+
+    @property
+    def pilar4(self) -> Tuple[int, int]:
+        return (94, 370)
+
+    @property
     def mask(self):
-        mask = cv2.inRange(self.template, self.mask_lb, self.mask_ub)
+        mask = cv2.inRange(self.template, 0, 60)
 
         # Position of pilars
-        p = self.padding // 2
-        px1, py1 = 56 + p, 74 + p
-        px2, py2 = 94 + p, 74 + p
-        px3, py3 = 56 + p, 370 + p
-        px4, py4 = 94 + p, 370 + p
+        px1, py1 = self.pilar1
+        px2, py2 = self.pilar2
+        px3, py3 = self.pilar3
+        px4, py4 = self.pilar4
 
         r = 20
         w = self.distance_between_tissues
