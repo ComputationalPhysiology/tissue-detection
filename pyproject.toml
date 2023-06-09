@@ -39,7 +39,8 @@ pypi = [
 ]
 docs = [
    "jupyter-book",
-   "matplotlib"
+   "matplotlib",
+   "cardiac-mps"
 ]
 all = [
    "tissue-detection[test]",

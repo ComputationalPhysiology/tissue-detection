@@ -1,3 +1,4 @@
+from typing import Tuple
 import cv2
 import numpy as np
 
@@ -6,34 +7,70 @@ from .templates import files as templates
 
 
 class TPE1(Template):
-    def __init__(self):
-        self.template = cv2.imread(
+    def __init__(self, scale: float = 1.0, padding: int = 0) -> None:
+        template = cv2.imread(
             templates["tpe1_template"].as_posix(), cv2.IMREAD_GRAYSCALE
         )
-        self.padding = 50
+        self.template = template[80:520, 50:640]
+        self.padding = padding
         self.mask_lb = 0
         self.mask_ub = 60
+        self.scale = scale
+        self.__post_init__()
+
+    @property
+    def distance_between_tissues(self) -> int:
+        return 147
+
+    @property
+    def center_tissue1(self) -> Tuple[int, int]:
+        return (57, 223)
+
+    @property
+    def center_tissue2(self) -> Tuple[int, int]:
+        y, x = self.center_tissue1
+        w = self.distance_between_tissues
+        return (y + w, x)
+
+    @property
+    def center_tissue3(self) -> Tuple[int, int]:
+        y, x = self.center_tissue1
+        w = self.distance_between_tissues
+        return (y + 2 * w, x)
+
+    @property
+    def center_tissue4(self) -> Tuple[int, int]:
+        y, x = self.center_tissue1
+        w = self.distance_between_tissues
+        return (y + 3 * w, x)
 
     @property
     def mask(self):
-        mask = cv2.inRange(self.padded_template, self.mask_lb, self.mask_ub)
+        mask = cv2.inRange(self.template, self.mask_lb, self.mask_ub)
 
-        # remove pillar features so can be used with 3 pillar design
-        mask[170:220, 140:220] = 0
-        mask[470:520, 140:220] = 0
+        # Position of pilars
+        p = self.padding // 2
+        px1, py1 = 56 + p, 74 + p
+        px2, py2 = 94 + p, 74 + p
+        px3, py3 = 56 + p, 370 + p
+        px4, py4 = 94 + p, 370 + p
 
-        mask[170:220, 285:360] = 0
-        mask[470:520, 285:360] = 0
+        r = 20
+        w = self.distance_between_tissues
+        for i in range(4):
+            mask[py1 - r : py1 + r, w * i + px1 - r : w * i + px1 + r] = 0
+            mask[py2 - r : py2 + r, w * i + px2 - r : w * i + px2 + r] = 0
+            mask[py3 - r : py3 + r, w * i + px3 - r : w * i + px3 + r] = 0
+            mask[py4 - r : py4 + r, w * i + px4 - r : w * i + px4 + r] = 0
 
-        mask[170:220, 430:510] = 0
-        mask[470:520, 430:510] = 0
+        # Remove an artifact from template
+        mask[67 - 10 : 67 + 10, 475 - 10 : 475 + 10] = 0
 
-        mask[180:215, 570:655] = 0
-        mask[470:520, 575:655] = 0
-        cv2.floodFill(mask, None, (170, 300), 100)
-        cv2.floodFill(mask, None, (320, 300), 125)
-        cv2.floodFill(mask, None, (470, 300), 150)
-        cv2.floodFill(mask, None, (620, 300), 175)
+        cv2.floodFill(mask, None, self.center_tissue1, 100)
+        cv2.floodFill(mask, None, self.center_tissue2, 125)
+        cv2.floodFill(mask, None, self.center_tissue3, 150)
+        cv2.floodFill(mask, None, self.center_tissue4, 175)
+
         return mask
 
     def create_result(self, img: np.ndarray):
@@ -48,18 +85,3 @@ class TPE1(Template):
         final_mask[mask3] = 3
         final_mask[mask4] = 4
         return final_mask
-
-
-class TPE2(TPE1):
-    def __init__(self):
-        self.template = cv2.imread(
-            templates["tpe1_outline"].as_posix(), cv2.IMREAD_GRAYSCALE
-        )
-        self.padding = 50
-        self.mask_lb = 100
-        self.mask_ub = 255
-
-    def get_cropped_mask(self, img: np.ndarray, res: np.ndarray) -> np.ndarray:
-        h, w = img.shape
-        x, y = cv2.minMaxLoc(res)[-2]
-        return self.mask[y : y + h, x : x + w]
