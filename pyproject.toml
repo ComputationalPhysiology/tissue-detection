@@ -22,11 +22,6 @@ Source = "https://github.com/ComputationalPhysiology/tissue-detection"
 Tracker = "https://github.com/ComputationalPhysiology/tissue-detection/issues"
 
 [project.optional-dependencies]
-test = [
-    "pytest",
-    "pytest-cov",
-    "jupytext"
-]
 dev = [
     "pdbpp",
     "ipython",
@@ -35,18 +30,24 @@ dev = [
 ]
 pypi = [
     "twine",
-    "build"
+    "build",
 ]
 docs = [
    "jupyter-book",
    "matplotlib",
-   "cardiac-mps"
+   "cardiac-mps",
+]
+test = [
+    "pytest",
+    "pytest-cov",
+    "jupytext",
+    "tissue-detection[docs]",
 ]
 all = [
    "tissue-detection[test]",
    "tissue-detection[docs]",
    "tissue-detection[pypi]",
-   "tissue-detection[dev]"
+   "tissue-detection[dev]",
 ]
 
 
