@@ -45,7 +45,7 @@ class MatchMethods(IntEnum):
     CCOEFF_NORMED = cv2.TM_CCOEFF_NORMED
 
 
-@dataclass(slots=True)
+@dataclass
 class TemplateMatchResult:
     result: np.ndarray
     template: np.ndarray
