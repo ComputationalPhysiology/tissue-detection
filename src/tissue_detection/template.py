@@ -1,6 +1,6 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import NamedTuple, Tuple
+from dataclasses import dataclass, field
+from typing import Dict, List, NamedTuple, Tuple
 from pathlib import Path
 from enum import IntEnum
 
@@ -29,6 +29,13 @@ def scale_image(
     return cv2.resize(img, (height, width), interpolation=interpolation)
 
 
+class BBox(NamedTuple):
+    x0: int
+    x1: int
+    y0: int
+    y1: int
+
+
 class MatchMethods(IntEnum):
     SQDIFF = cv2.TM_SQDIFF
     SQDIFF_NORMED = cv2.TM_SQDIFF_NORMED
@@ -38,11 +45,53 @@ class MatchMethods(IntEnum):
     CCOEFF_NORMED = cv2.TM_CCOEFF_NORMED
 
 
-class TemplateMatchResult(NamedTuple):
+@dataclass
+class TemplateMatchResult:
     result: np.ndarray
     template: np.ndarray
     template_mask: np.ndarray
     match_result: np.ndarray
+    _tissue_masks: Dict[int, np.ndarray] = field(init=False, repr=False)
+    _values: List[int] = field(init=False, repr=False)
+    _boxes: Dict[int, BBox] = field(init=False, repr=False)
+
+    def __post_init__(self):
+        self._values = [int(v) for v in np.unique(self.result) if v > 0]
+        self._add_tissue_masks()
+        self._add_bounding_boxes()
+
+    def _add_bounding_boxes(self):
+        self._boxes = {}
+        for value in self._values:
+            ys, xs = np.where(self._tissue_masks[value])
+            self._boxes[value] = BBox(
+                x0=xs.min(), x1=xs.max(), y0=ys.min(), y1=ys.max()
+            )
+
+    def _add_tissue_masks(self):
+        self._tissue_masks = {}
+        for value in self._values:
+            self._tissue_masks[value] = np.zeros(self.result.shape, dtype=bool)
+            self._tissue_masks[value][self.result == value] = True
+
+    @property
+    def values(self):
+        return self._values
+
+    def tissue_mask(self, value, add_bbox: bool = False) -> np.ndarray:
+        if add_bbox:
+            bbox = self.bounding_box(value)
+            return self._tissue_masks[value][bbox.y0 : bbox.y1, bbox.x0 : bbox.x1]
+        else:
+            assert value in self._values
+            return self._tissue_masks[value]
+
+    def bounding_box(self, value: int) -> BBox:
+        assert value in self._values
+        return self._boxes[value]
+
+    def bounding_boxes(self) -> Dict[int, BBox]:
+        return {v: self.bounding_box(v) for v in self.values}
 
 
 @dataclass
