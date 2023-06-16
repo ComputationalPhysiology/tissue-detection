@@ -15,6 +15,14 @@ class TPE1(Template):
         self.include_pilars = include_pilars
 
     @property
+    def width(self):
+        return self.template.shape[1]
+
+    @property
+    def height(self):
+        return self.template.shape[0]
+
+    @property
     def distance_between_tissues(self) -> int:
         return 147
 

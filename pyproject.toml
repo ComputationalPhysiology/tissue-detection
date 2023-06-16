@@ -25,6 +25,7 @@ Tracker = "https://github.com/ComputationalPhysiology/tissue-detection/issues"
 test = [
     "pytest",
     "pytest-cov",
+    "jupytext"
 ]
 dev = [
     "pdbpp",
