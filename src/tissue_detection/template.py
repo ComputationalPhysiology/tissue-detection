@@ -65,7 +65,7 @@ class TemplateMatchResult:
         for value in self._values:
             ys, xs = np.where(self._tissue_masks[value])
             self._boxes[value] = BBox(
-                x0=xs.min(), x1=xs.max(), y0=ys.min(), y1=ys.max()
+                x0=int(xs.min()), x1=int(xs.max()), y0=int(ys.min()), y1=int(ys.max())
             )
 
     def _add_tissue_masks(self):
