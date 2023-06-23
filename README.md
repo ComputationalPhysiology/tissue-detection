@@ -7,8 +7,9 @@ Library for detecting tissue in cardiac TPE and MPS systems.
 
 ## Install
 You can install the library with pip
+
 ```
-python3 -m pip install git+https://github.com/ComputationalPhysiology/tissue-detection.git
+python3 -m pip install tissue-detection
 ```
 
 
